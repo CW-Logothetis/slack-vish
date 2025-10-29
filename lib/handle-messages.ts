@@ -71,3 +71,65 @@ export async function handleNewAssistantMessage(
 
   updateStatus("");
 }
+
+export async function handleFeedbackChannelMessage(
+  event: GenericMessageEvent,
+  botUserId: string,
+) {
+  console.log("Handling feedback channel message");
+  
+  const { channel, ts, text } = event;
+  
+  if (!text) {
+    console.log("No text in message, skipping");
+    return;
+  }
+
+  try {
+    const disclaimer = "(IMPORTANT: I'll try give a quick answer, but I'm not the Real Slim Vishady. One of the team will still try get back to you ASAP...)";
+    
+    // Post initial thinking status
+    const initialMessage = await client.chat.postMessage({
+      channel: channel,
+      thread_ts: ts,
+      text: "is thinking...",
+    });
+
+    if (!initialMessage || !initialMessage.ts) {
+      throw new Error("Failed to post initial message");
+    }
+
+    // Generate LLM response
+    const llmResponse = await generateResponse(
+      [{ role: "user", content: text }],
+    );
+
+    // Combine disclaimer with LLM response
+    const fullResponse = `${disclaimer}\n\n${llmResponse}`;
+
+    // Update with final response
+    await client.chat.update({
+      channel: channel,
+      ts: initialMessage.ts as string,
+      text: fullResponse,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: fullResponse,
+          },
+        },
+      ],
+    });
+
+    console.log("Feedback channel message handled successfully");
+  } catch (error) {
+    console.error("Error in handleFeedbackChannelMessage:", error);
+    await client.chat.postMessage({
+      channel: channel,
+      thread_ts: ts,
+      text: `Error: Failed to generate response. ${error instanceof Error ? error.message : 'Unknown error'}`,
+    });
+  }
+}

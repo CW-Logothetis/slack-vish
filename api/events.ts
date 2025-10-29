@@ -2,6 +2,7 @@ import type { SlackEvent } from "@slack/web-api";
 import {
   assistantThreadMessage,
   handleNewAssistantMessage,
+  handleFeedbackChannelMessage,
 } from "../lib/handle-messages";
 import { waitUntil } from "@vercel/functions";
 import { handleNewAppMention } from "../lib/handle-app-mention";
@@ -41,6 +42,16 @@ export async function POST(request: Request) {
       event.bot_id !== botUserId
     ) {
       waitUntil(handleNewAssistantMessage(event, botUserId));
+    }
+
+    if (
+      event.type === "message" &&
+      !event.subtype &&
+      event.channel === "C09NX0PJEA1" &&
+      !event.bot_id &&
+      !event.bot_profile
+    ) {
+      waitUntil(handleFeedbackChannelMessage(event, botUserId));
     }
 
     return new Response("Success!", { status: 200 });
