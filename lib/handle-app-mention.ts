@@ -34,19 +34,27 @@ export async function handleNewAppMention(
     console.log("Skipping app mention");
     return;
   }
+  console.log(event)
 
   const { thread_ts, channel } = event;
   const updateMessage = await updateStatusUtil("is thinking...", event);
 
-  if (thread_ts) {
-    const messages = await getThread(channel, thread_ts, botUserId);
-    const result = await generateResponse(messages, updateMessage);
-    updateMessage(result);
-  } else {
-    const result = await generateResponse(
-      [{ role: "user", content: event.text }],
-      updateMessage,
-    );
-    updateMessage(result);
+  try {
+    if (thread_ts) {
+      console.log("Getting thread");
+      const messages = await getThread(channel, thread_ts, botUserId);
+      const result = await generateResponse(messages, updateMessage);
+      await updateMessage(result);
+    } else {
+      console.log("Generating response");
+      const result = await generateResponse(
+        [{ role: "user", content: event.text }],
+        updateMessage,
+      );
+      await updateMessage(result);
+    }
+  } catch (error) {
+    console.error("Error in handleNewAppMention:", error);
+    await updateMessage(`Error: Failed to generate response. ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
