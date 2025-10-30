@@ -2,7 +2,7 @@ import type {
   AssistantThreadStartedEvent,
   GenericMessageEvent,
 } from "@slack/web-api";
-import { client, getThread, updateStatusUtil } from "./slack-utils";
+import { client, getThread, updateStatusUtil, getChannelHistory } from "./slack-utils";
 import { generateResponse } from "./generate-response";
 
 export async function assistantThreadMessage(
@@ -99,10 +99,11 @@ export async function handleFeedbackChannelMessage(
       throw new Error("Failed to post initial message");
     }
 
-    // Generate LLM response
-    const llmResponse = await generateResponse(
-      [{ role: "user", content: text }],
-    );
+    // Get channel history for context
+    const channelHistory = await getChannelHistory(channel, botUserId);
+    
+    // Generate LLM response with channel history as context
+    const llmResponse = await generateResponse(channelHistory);
 
     // Combine disclaimer with LLM response
     const fullResponse = `${disclaimer}\n\n${llmResponse}`;

@@ -114,3 +114,82 @@ export const getBotId = async () => {
   }
   return botUserId;
 };
+
+export async function getChannelHistory(
+  channel_id: string,
+  botUserId: string,
+): Promise<ModelMessage[]> {
+  try {
+    // Fetch the last 100 messages from the channel
+    const { messages: topLevelMessages } = await client.conversations.history({
+      channel: channel_id,
+      limit: 20,
+    });
+
+    if (!topLevelMessages || topLevelMessages.length === 0) {
+      console.log("No messages found in channel");
+      return [];
+    }
+
+    // Collect all messages (top-level + thread replies)
+    const allMessages: any[] = [];
+
+    // Process messages in reverse to get chronological order
+    for (const message of topLevelMessages.reverse()) {
+      // Add top-level message
+      if (message.text && !message.subtype) {
+        const isBot = !!message.bot_id;
+        let content = message.text;
+        
+        // Remove bot mention prefix for non-bot messages
+        if (!isBot && content.includes(`<@${botUserId}>`)) {
+          content = content.replace(`<@${botUserId}> `, "");
+        }
+
+        allMessages.push({
+          role: isBot ? "assistant" : "user",
+          content: content,
+        } as ModelMessage);
+      }
+
+      // If message has replies (is a thread), fetch them
+      if (message.thread_ts && message.reply_count && message.reply_count > 0) {
+        try {
+          const { messages: threadMessages } = await client.conversations.replies({
+            channel: channel_id,
+            ts: message.thread_ts,
+            limit: 100,
+          });
+
+          if (threadMessages) {
+            // Skip the first message (it's the parent message we already added)
+            for (const threadMessage of threadMessages.slice(1)) {
+              if (threadMessage.text && !(threadMessage as any).subtype) {
+                const isBot = !!threadMessage.bot_id;
+                let content = threadMessage.text;
+                
+                // Remove bot mention prefix for non-bot messages
+                if (!isBot && content.includes(`<@${botUserId}>`)) {
+                  content = content.replace(`<@${botUserId}> `, "");
+                }
+
+                allMessages.push({
+                  role: isBot ? "assistant" : "user",
+                  content: content,
+                } as ModelMessage);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching thread for message ${message.thread_ts}:`, error);
+          // Continue processing other messages if thread fetch fails
+        }
+      }
+    }
+
+    return allMessages;
+  } catch (error) {
+    console.error("Error in getChannelHistory:", error);
+    throw error;
+  }
+}
