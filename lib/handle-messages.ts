@@ -86,13 +86,13 @@ export async function handleFeedbackChannelMessage(
   }
 
   try {
-    const disclaimer = "(IMPORTANT: I'll try give a quick answer, but I'm not the Real Slim Vishady. One of the team will still try get back to you ASAP...)";
+    const disclaimer = "IMPORTANT: I'm a bot. I hoped I helped, but one of the team will still reply ASAP...";
     
     // Post initial thinking status
     const initialMessage = await client.chat.postMessage({
       channel: channel,
       thread_ts: ts,
-      text: "is thinking...",
+      text: "... thinking...I'll try to give a quick answer, but I'm not the Real Slim Vi-shady so I might be wrong... thinking...",
     });
 
     if (!initialMessage || !initialMessage.ts) {
@@ -106,7 +106,7 @@ export async function handleFeedbackChannelMessage(
     const llmResponse = await generateResponse(channelHistory);
 
     // Combine disclaimer with LLM response
-    const fullResponse = `${disclaimer}\n\n${llmResponse}`;
+    const fullResponse = `${llmResponse}\n\n${disclaimer}`;
 
     // Update with final response
     await client.chat.update({

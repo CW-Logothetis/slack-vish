@@ -123,7 +123,7 @@ export async function getChannelHistory(
     // Fetch the last 100 messages from the channel
     const { messages: topLevelMessages } = await client.conversations.history({
       channel: channel_id,
-      limit: 20,
+      limit: 100,
     });
 
     if (!topLevelMessages || topLevelMessages.length === 0) {
@@ -131,25 +131,29 @@ export async function getChannelHistory(
       return [];
     }
 
-    // Collect all messages (top-level + thread replies)
-    const allMessages: any[] = [];
+    // Use a Set to track message timestamps and avoid duplicates
+    const seenTimestamps = new Set<string>();
+    const allMessages: ModelMessage[] = [];
 
     // Process messages in reverse to get chronological order
     for (const message of topLevelMessages.reverse()) {
       // Add top-level message
-      if (message.text && !message.subtype) {
-        const isBot = !!message.bot_id;
-        let content = message.text;
-        
-        // Remove bot mention prefix for non-bot messages
-        if (!isBot && content.includes(`<@${botUserId}>`)) {
-          content = content.replace(`<@${botUserId}> `, "");
-        }
+      if (message.text && !message.subtype && message.ts) {
+        if (!seenTimestamps.has(message.ts)) {
+          const isBot = !!message.bot_id;
+          let content = message.text;
+          
+          // Remove bot mention prefix for non-bot messages
+          if (!isBot && content.includes(`<@${botUserId}>`)) {
+            content = content.replace(`<@${botUserId}> `, "");
+          }
 
-        allMessages.push({
-          role: isBot ? "assistant" : "user",
-          content: content,
-        } as ModelMessage);
+          allMessages.push({
+            role: isBot ? "assistant" : "user",
+            content: content,
+          } as ModelMessage);
+          seenTimestamps.add(message.ts);
+        }
       }
 
       // If message has replies (is a thread), fetch them
@@ -164,19 +168,22 @@ export async function getChannelHistory(
           if (threadMessages) {
             // Skip the first message (it's the parent message we already added)
             for (const threadMessage of threadMessages.slice(1)) {
-              if (threadMessage.text && !(threadMessage as any).subtype) {
-                const isBot = !!threadMessage.bot_id;
-                let content = threadMessage.text;
-                
-                // Remove bot mention prefix for non-bot messages
-                if (!isBot && content.includes(`<@${botUserId}>`)) {
-                  content = content.replace(`<@${botUserId}> `, "");
-                }
+              if (threadMessage.text && !(threadMessage as any).subtype && threadMessage.ts) {
+                if (!seenTimestamps.has(threadMessage.ts)) {
+                  const isBot = !!threadMessage.bot_id;
+                  let content = threadMessage.text;
+                  
+                  // Remove bot mention prefix for non-bot messages
+                  if (!isBot && content.includes(`<@${botUserId}>`)) {
+                    content = content.replace(`<@${botUserId}> `, "");
+                  }
 
-                allMessages.push({
-                  role: isBot ? "assistant" : "user",
-                  content: content,
-                } as ModelMessage);
+                  allMessages.push({
+                    role: isBot ? "assistant" : "user",
+                    content: content,
+                  } as ModelMessage);
+                  seenTimestamps.add(threadMessage.ts);
+                }
               }
             }
           }

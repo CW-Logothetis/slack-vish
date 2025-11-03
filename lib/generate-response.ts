@@ -1,7 +1,6 @@
 import { google } from '@ai-sdk/google';
-import { generateText, tool, ModelMessage, stepCountIs } from 'ai';
-import { z } from 'zod';
-import { exa } from './utils';
+import { generateText, ModelMessage } from 'ai';
+import { expertFinderManual } from '../docs/expert-finder-user-manual';
 
 export const generateResponse = async (
   messages: ModelMessage[],
@@ -12,70 +11,17 @@ export const generateResponse = async (
     const { text } = await generateText({
       model: google('gemini-2.5-flash'),
       system: `You are a Slack bot assistant. Keep your responses concise and to the point.
-      - Users generally report bugs or provide feedback on the search agent feature.
-      - You have access to the conversation history from the feedback channel including all previous messages and thread discussions. Reference relevant previous discussions when appropriate to provide context or continuity.
-      - Use the conversation history to see if the bug report or feedback request has been handled before.
-      - If it has, repeat the previous response.
-      - If it hasn't, inform the user that someone in the team will get back to them as soon as possible.
+      - Users generally report bugs or provide feedback on the search agent feature. They sometimes ask questions about the search agent feature.
+      - First check the last 100 messsages from the feedback channel including all thread discussions.
+      - If you find a previous answer in the 100 messages for questions, bug reports or feedback, then repeat the previous response.
+      - If you cannot find an answer in the conversation history then check the docs in ${expertFinderManual}.
+      - If you can't find an answer in the 100 messages or the docs, then inform the user that someone in the team will get back to them as soon as possible.
       - Do not tag users.
       - Current date is: ${new Date().toISOString().split('T')[0]},
-      - **IMPORTANT**: use the conversation history to see if you can answer the question or provide the information requested.
-      - If you can't answer the question or provide the information requested, inform the user that someone in the team will get back to them as soon as possible.`,
+      - **IMPORTANT**: use the conversation history, then the docs, to see if you can answer the question or provide the information requested.
+      - If you can't find the information requested in the conversation history or the docs, you MUST inform the user that: 
+      "I can't find the answer so please wait for someone in the team to get back to you as soon as possible."`,
       messages,
-      // stopWhen: stepCountIs(10),
-      // tools: {
-        // getWeather: tool({
-        //   description: 'Get the current weather at a location',
-        //   inputSchema: z.object({
-        //     latitude: z.number(),
-        //     longitude: z.number(),
-        //     city: z.string(),
-        //   }),
-        //   execute: async ({ latitude, longitude, city }) => {
-        //     updateStatus?.(`is getting weather for ${city}...`);
-
-        //     const response = await fetch(
-        //       `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weathercode,relativehumidity_2m&timezone=auto`,
-        //     );
-
-        //     const weatherData = await response.json();
-        //     return {
-        //       temperature: weatherData.current.temperature_2m,
-        //       weatherCode: weatherData.current.weathercode,
-        //       humidity: weatherData.current.relativehumidity_2m,
-        //       city,
-        //     };
-        //   },
-        // }),
-        // searchWeb: tool({
-        //   description: 'Use this to search the web for information',
-        //   inputSchema: z.object({
-        //     query: z.string(),
-        //     specificDomain: z
-        //       .string()
-        //       .nullable()
-        //       .describe(
-        //         'a domain to search if the user specifies e.g. bbc.com. Should be only the domain name without the protocol',
-        //       ),
-        //   }),
-        //   execute: async ({ query, specificDomain }) => {
-        //     updateStatus?.(`is searching the web for ${query}...`);
-        //     const { results } = await exa.searchAndContents(query, {
-        //       livecrawl: 'always',
-        //       numResults: 3,
-        //       includeDomains: specificDomain ? [specificDomain] : undefined,
-        //     });
-
-        //     return {
-        //       results: results.map(result => ({
-        //         title: result.title,
-        //         url: result.url,
-        //         snippet: result.text.slice(0, 1000),
-        //       })),
-        //     };
-        //   },
-        // }),
-      // },
     });
 
     // Convert markdown to Slack mrkdwn format
